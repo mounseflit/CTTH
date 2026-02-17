@@ -170,8 +170,8 @@ export default function TradePage() {
 
             {showHSPicker && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowHSPicker(false)} />
-                <div className="absolute top-full mt-2 left-0 z-20 bg-white rounded-2xl shadow-lg border border-surface-100 p-3 w-[420px] max-h-[320px] overflow-y-auto animate-fade-in">
+                <div className="fixed inset-0 z-40" onClick={() => setShowHSPicker(false)} />
+                <div className="absolute top-full mt-2 left-0 z-50 bg-white rounded-2xl shadow-lg border border-surface-100 p-3 w-[420px] max-h-[320px] overflow-y-auto animate-fade-in">
                   <div className="flex items-center justify-between mb-2 px-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-surface-400">Sélectionnez les chapitres</span>
                     {selectedHS.length > 0 && (
