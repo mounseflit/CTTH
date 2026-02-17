@@ -128,7 +128,7 @@ export default function TradePage() {
       </div>
 
       {/* Filters Bar */}
-      <div className="glass-card rounded-2xl p-4">
+      <div className="glass-card rounded-2xl p-4 relative z-30 overflow-visible">
         <div className="flex flex-wrap items-center gap-3">
           {/* Flow toggle */}
           <div className="flex bg-surface-100 rounded-xl p-1">
