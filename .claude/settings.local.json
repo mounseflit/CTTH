@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:developer.trade.gov)",
+      "WebFetch(domain:www.federalregister.gov)",
+      "WebFetch(domain:docs.ropensci.org)",
+      "WebFetch(domain:www.trade.gov)",
+      "WebFetch(domain:comtradedeveloper.un.org)",
+      "WebFetch(domain:unstats.un.org)",
+      "WebFetch(domain:api.trade.gov)",
+      "WebFetch(domain:wits.worldbank.org)",
+      "WebFetch(domain:groups.google.com)",
+      "WebFetch(domain:docs.perplexity.ai)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:uncomtrade.org)",
+      "WebFetch(domain:ec.europa.eu)",
+      "WebFetch(domain:comtradeapi.un.org)",
+      "WebFetch(domain:publicapis.io)",
+      "Bash(docker compose:*)"
+    ]
+  }
+}
