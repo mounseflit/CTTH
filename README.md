@@ -231,16 +231,4 @@ POST   /api/reports/{id}/email  - Send report via email
 GET    /api/settings            - User settings
 ```
 
----
 
-## 📄 License
-
-© 2026 CTTH — Centre Technique du Textile et de l'Habillement
-
----
-
-## 📞 Support
-
-For issues or questions, contact the development team.
-
-**Last Updated**: February 17, 2026
