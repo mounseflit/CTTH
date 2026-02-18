@@ -52,7 +52,7 @@ def _run_report_generation(report_id: str):
         db.reports.update_one({"_id": report_id}, {"$set": {"status": "failed"}})
 
 
-@router.get("/", response_model=list[ReportListItem])
+@router.get("", response_model=list[ReportListItem])
 async def list_reports(
     db: AsyncIOMotorDatabase = Depends(get_db),
     user: dict = Depends(get_current_user),
@@ -75,7 +75,7 @@ async def list_reports(
     ]
 
 
-@router.post("/", response_model=ReportStatusResponse)
+@router.post("", response_model=ReportStatusResponse)
 async def create_report(
     data: ReportCreate,
     background_tasks: BackgroundTasks,

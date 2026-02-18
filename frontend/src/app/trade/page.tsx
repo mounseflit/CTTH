@@ -128,7 +128,7 @@ export default function TradePage() {
       </div>
 
       {/* Filters Bar */}
-      <div className="glass-card rounded-2xl p-4 relative z-30 overflow-visible">
+      <div className="bg-white border border-white/60 shadow-card rounded-2xl p-4 relative z-[60] overflow-visible">
         <div className="flex flex-wrap items-center gap-3">
           {/* Flow toggle */}
           <div className="flex bg-surface-100 rounded-xl p-1">
@@ -151,7 +151,7 @@ export default function TradePage() {
           <div className="w-px h-8 bg-surface-200" />
 
           {/* HS Chapters dropdown */}
-          <div className="relative">
+          <div className="relative z-[999]">
             <button
               onClick={() => setShowHSPicker(!showHSPicker)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all duration-200 ${selectedHS.length > 0
@@ -170,8 +170,8 @@ export default function TradePage() {
 
             {showHSPicker && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowHSPicker(false)} />
-                <div className="absolute top-full mt-2 left-0 z-50 bg-white rounded-2xl shadow-lg border border-surface-100 p-3 w-[420px] max-h-[320px] overflow-y-auto animate-fade-in">
+                <div className="fixed inset-0 z-[9998]" onClick={() => setShowHSPicker(false)} />
+                <div className="absolute top-full mt-2 left-0 z-[9999] bg-white rounded-2xl shadow-xl border border-surface-100 p-3 w-[420px] max-h-[320px] overflow-y-auto animate-fade-in">
                   <div className="flex items-center justify-between mb-2 px-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-surface-400">Sélectionnez les chapitres</span>
                     {selectedHS.length > 0 && (
@@ -236,7 +236,7 @@ export default function TradePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-surface-100 rounded-xl p-1 w-fit">
+      <div className="relative z-[1] flex gap-1 bg-surface-100 rounded-xl p-1 w-fit">
         <button
           onClick={() => {
             setTab('data')
@@ -267,6 +267,7 @@ export default function TradePage() {
       </div>
 
       {/* Content */}
+      <div className="relative z-[1]">
       {loading ? (
         <LoadingSpinner />
       ) : tab === 'overview' ? (
@@ -343,6 +344,7 @@ export default function TradePage() {
           />
         </Card>
       )}
+      </div>
     </div>
   )
 }

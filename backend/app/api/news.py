@@ -11,7 +11,7 @@ from app.services.news_service import get_news
 router = APIRouter()
 
 
-@router.get("/", response_model=NewsPaginatedResponse)
+@router.get("", response_model=NewsPaginatedResponse)
 async def get_news_endpoint(
     category: str | None = Query(None),
     search: str | None = Query(None),

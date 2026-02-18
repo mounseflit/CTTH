@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./venv/Scripts/pip:*)",
+      "Bash(./venv/Scripts/python:*)",
+      "Bash(./venv/Scripts/uvicorn:*)",
+      "Bash(curl:*)",
+      "Bash(npm run dev:*)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)",
+      "Bash(npx next dev:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
+    ]
+  }
+}

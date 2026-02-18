@@ -2,74 +2,70 @@
 Seed script: creates default admin user and initializes data source status rows.
 
 Usage:
-    docker compose exec backend python scripts/seed_data.py
+    cd backend && python -m scripts.seed_data
+    -- or --
+    python scripts/seed_data.py
 """
+import os
 import sys
 import uuid
+from datetime import datetime, timezone
 
-sys.path.insert(0, "/app")
+# Ensure the backend package is importable
+_here = os.path.dirname(os.path.abspath(__file__))
+_backend = os.path.join(os.path.dirname(_here), "backend")
+if _backend not in sys.path:
+    sys.path.insert(0, _backend)
 
-from passlib.context import CryptContext
-from sqlalchemy import text
+import bcrypt
 
-from app.database import sync_engine, SyncSessionLocal
-from app.models import Base
+from app.database import get_sync_db
 from app.agents.constants import ALL_SOURCES
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def _hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def seed():
-    # Create tables if they don't exist (fallback if Alembic hasn't run)
-    Base.metadata.create_all(sync_engine)
+    db = get_sync_db()
 
-    with SyncSessionLocal() as db:
-        # Create admin user
-        existing = db.execute(
-            text("SELECT id FROM users WHERE email = :email"),
-            {"email": "admin@ctth.ma"},
-        ).fetchone()
+    # ── Admin user ──────────────────────────────────────
+    admin_email = "admin@ctth.ma"
+    existing = db.users.find_one({"email": admin_email})
+
+    if not existing:
+        db.users.insert_one({
+            "_id": str(uuid.uuid4()),
+            "email": admin_email,
+            "hashed_password": _hash_password("admin123"),
+            "full_name": "Administrateur CTTH",
+            "role": "admin",
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc),
+        })
+        print("[OK] Admin user created: admin@ctth.ma / admin123")
+    else:
+        print("[SKIP] Admin user already exists")
+
+    # ── Data source status rows ─────────────────────────
+    for source_name in ALL_SOURCES:
+        existing = db.data_source_status.find_one({"source_name": source_name})
 
         if not existing:
-            db.execute(
-                text("""
-                    INSERT INTO users (id, email, hashed_password, full_name, role, is_active)
-                    VALUES (:id, :email, :password, :name, :role, true)
-                """),
-                {
-                    "id": str(uuid.uuid4()),
-                    "email": "admin@ctth.ma",
-                    "password": pwd_context.hash("admin123"),
-                    "name": "Administrateur CTTH",
-                    "role": "admin",
-                },
-            )
-            print("[OK] Admin user created: admin@ctth.ma / admin123")
+            db.data_source_status.insert_one({
+                "_id": str(uuid.uuid4()),
+                "source_name": source_name,
+                "status": "active",
+                "records_fetched_today": 0,
+                "api_calls_today": 0,
+                "last_successful_fetch": None,
+                "last_error_message": None,
+                "updated_at": datetime.now(timezone.utc),
+            })
+            print(f"[OK] Data source status created: {source_name}")
         else:
-            print("[SKIP] Admin user already exists")
-
-        # Create data source status rows
-        for source_name in ALL_SOURCES:
-            existing = db.execute(
-                text(
-                    "SELECT id FROM data_source_status WHERE source_name = :name"
-                ),
-                {"name": source_name},
-            ).fetchone()
-
-            if not existing:
-                db.execute(
-                    text("""
-                        INSERT INTO data_source_status (id, source_name, status, records_fetched_today, api_calls_today)
-                        VALUES (:id, :name, 'active', 0, 0)
-                    """),
-                    {"id": str(uuid.uuid4()), "name": source_name},
-                )
-                print(f"[OK] Data source status created: {source_name}")
-            else:
-                print(f"[SKIP] Data source status exists: {source_name}")
-
-        db.commit()
+            print(f"[SKIP] Data source status exists: {source_name}")
 
     print("\nSeed complete!")
 

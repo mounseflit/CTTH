@@ -2,32 +2,48 @@
 Manual data fetch script: trigger any agent from the command line.
 
 Usage:
-    docker compose exec backend python scripts/manual_fetch.py --agent eurostat
-    docker compose exec backend python scripts/manual_fetch.py --agent comtrade
-    docker compose exec backend python scripts/manual_fetch.py --agent federal_register
-    docker compose exec backend python scripts/manual_fetch.py --agent general_watcher
-    docker compose exec backend python scripts/manual_fetch.py --agent all
+    cd backend && python -m scripts.manual_fetch --agent eurostat
+    -- or --
+    python scripts/manual_fetch.py --agent comtrade
+    python scripts/manual_fetch.py --agent federal_register
+    python scripts/manual_fetch.py --agent general_watcher
+    python scripts/manual_fetch.py --agent otexa
+    python scripts/manual_fetch.py --agent all
 """
 import argparse
 import logging
+import os
 import sys
 
-sys.path.insert(0, "/app")
+# Ensure the backend package is importable
+_here = os.path.dirname(os.path.abspath(__file__))
+_backend = os.path.join(os.path.dirname(_here), "backend")
+if _backend not in sys.path:
+    sys.path.insert(0, _backend)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 
-from app.database import SyncSessionLocal
-from app.agents.eurostat_agent import EurostatAgent
 from app.agents.comtrade_agent import ComtradeAgent
+from app.agents.eurostat_agent import EurostatAgent
 from app.agents.federal_register_agent import FederalRegisterAgent
 from app.agents.general_watcher import GeneralWatcher
+from app.database import get_sync_db
 
-AGENTS = {
+# Try to import OtexaAgent (may not exist yet)
+try:
+    from app.agents.otexa_agent import OtexaAgent
+    _HAS_OTEXA = True
+except ImportError:
+    _HAS_OTEXA = False
+
+AGENTS: dict = {
     "eurostat": EurostatAgent,
     "comtrade": ComtradeAgent,
     "federal_register": FederalRegisterAgent,
     "general_watcher": GeneralWatcher,
 }
+if _HAS_OTEXA:
+    AGENTS["otexa"] = OtexaAgent
 
 
 def run_agent(name: str):
@@ -41,16 +57,16 @@ def run_agent(name: str):
     print(f"Running agent: {name}")
     print(f"{'='*60}")
 
-    with SyncSessionLocal() as db:
-        agent = agent_class(db)
-        try:
-            count = agent.fetch_data()
-            agent.update_status("active", records=count)
-            print(f"\n[OK] {name}: {count} records fetched/updated")
-        except Exception as e:
-            agent.update_status("error", error_msg=str(e))
-            print(f"\n[ERROR] {name}: {e}")
-            logging.exception(f"Agent {name} failed")
+    db = get_sync_db()
+    agent = agent_class(db)
+    try:
+        count = agent.fetch_data()
+        agent.update_status("active", records=count)
+        print(f"\n[OK] {name}: {count} records fetched/updated")
+    except Exception as e:
+        agent.update_status("error", error_msg=str(e))
+        print(f"\n[ERROR] {name}: {e}")
+        logging.exception(f"Agent {name} failed")
 
 
 def main():

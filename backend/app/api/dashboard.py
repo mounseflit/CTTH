@@ -52,7 +52,7 @@ async def _sum_trade_value(db, flow: str, date_gte: datetime, date_lte: datetime
     return float(result[0]["total"]) if result else 0.0
 
 
-@router.get("/", response_model=DashboardResponse)
+@router.get("", response_model=DashboardResponse)
 async def get_dashboard(
     db: AsyncIOMotorDatabase = Depends(get_db),
     user: dict = Depends(get_current_user),
