@@ -23,6 +23,7 @@ class RecentNewsItem(BaseModel):
     category: str | None
     source_name: str | None
     published_at: datetime | None
+    source_url: str | None = None
 
 
 class DashboardResponse(BaseModel):

@@ -1,13 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { dashboardApi } from '@/lib/api'
 import type { DashboardData } from '@/types'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import AreaTrendChart from '@/components/charts/AreaTrendChart'
-import BarChartWidget from '@/components/charts/BarChartWidget'
 import {
   TrendingUp,
   TrendingDown,
@@ -18,6 +17,16 @@ import {
   Activity,
   RefreshCw,
 } from 'lucide-react'
+
+// Lazy-load heavy Recharts components — keeps initial JS bundle lean
+const AreaTrendChart = dynamic(() => import('@/components/charts/AreaTrendChart'), {
+  ssr: false,
+  loading: () => <div className="h-64 flex items-center justify-center"><LoadingSpinner /></div>,
+})
+const BarChartWidget = dynamic(() => import('@/components/charts/BarChartWidget'), {
+  ssr: false,
+  loading: () => <div className="h-48 flex items-center justify-center"><LoadingSpinner /></div>,
+})
 
 const iconConfig: Record<string, { icon: React.ElementType; gradient: string; bg: string }> = {
   'trending-up': {
@@ -48,8 +57,9 @@ export default function DashboardPage() {
   const [error, setError] = useState('')
   const [refreshing, setRefreshing] = useState(false)
 
-  const fetchData = () => {
+  const fetchData = (bust = false) => {
     setLoading(true)
+    if (bust) dashboardApi.invalidate()
     dashboardApi
       .get()
       .then((res) => setData(res.data))
@@ -85,7 +95,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <button
-          onClick={() => { setRefreshing(true); fetchData() }}
+          onClick={() => { setRefreshing(true); fetchData(true) }}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-surface-600 bg-white border border-surface-200 rounded-xl hover:bg-surface-50 hover:border-surface-300 transition-all duration-200 shadow-sm"
         >
           <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
@@ -148,6 +158,7 @@ export default function DashboardPage() {
         <div className="xl:col-span-2">
           <Card title="Tendances Export / Import" subtitle="Évolution annuelle des échanges commerciaux">
             <AreaTrendChart data={data.trend_data} />
+            <p className="text-[10px] text-surface-400 mt-3 text-right italic">Sources : Eurostat (ext_lt_maineu) &middot; UN Comtrade</p>
           </Card>
         </div>
         <Card title="Top Partenaires" subtitle="Par valeur commerciale totale">
@@ -158,6 +169,7 @@ export default function DashboardPage() {
             }))}
             layout="horizontal"
           />
+          <p className="text-[10px] text-surface-400 mt-3 text-right italic">Sources : Eurostat &middot; UN Comtrade</p>
         </Card>
       </div>
 
@@ -171,10 +183,11 @@ export default function DashboardPage() {
             }))}
             color="#f05e06"
           />
+          <p className="text-[10px] text-surface-400 mt-3 text-right italic">Sources : Eurostat (SITC) &middot; UN Comtrade (HS 50-63)</p>
         </Card>
 
         <div className="xl:col-span-2">
-          <Card title="Actualités Récentes" subtitle="Dernières nouvelles du secteur textile">
+          <Card title="Actualités Récentes" subtitle="Dernières nouvelles du secteur — OpenAI, Gemini, Federal Register, OTEXA">
             <div className="space-y-1 max-h-[360px] overflow-y-auto pr-1">
               {data.recent_news.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10">
@@ -182,32 +195,48 @@ export default function DashboardPage() {
                   <p className="text-surface-400 text-sm">Aucune actualité</p>
                 </div>
               ) : (
-                data.recent_news.map((news, idx) => (
-                  <div
-                    key={news.id}
-                    className="flex items-start gap-3 p-3 rounded-xl hover:bg-surface-50 transition-all duration-200 group/item animate-slide-up"
-                    style={{ animationDelay: `${idx * 60}ms`, animationFillMode: 'both' }}
-                  >
-                    <div className="mt-1 flex-shrink-0">
-                      {news.category && <Badge type={news.category} />}
+                data.recent_news.map((news, idx) => {
+                  const content = (
+                    <>
+                      <div className="mt-1 flex-shrink-0">
+                        {news.category && <Badge type={news.category} />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-surface-800 line-clamp-2 group-hover/item:text-primary-700 transition-colors">
+                          {news.title}
+                        </p>
+                        <p className="text-xs text-surface-400 mt-1">
+                          {news.source_name}
+                          {news.published_at &&
+                            ` · ${new Date(news.published_at).toLocaleDateString('fr-FR', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}`}
+                        </p>
+                      </div>
+                      <ArrowUpRight size={14} className="mt-1 text-surface-300 group-hover/item:text-primary-500 flex-shrink-0 transition-colors" />
+                    </>
+                  )
+                  const sharedClass = "flex items-start gap-3 p-3 rounded-xl hover:bg-surface-50 transition-all duration-200 group/item animate-slide-up"
+                  const sharedStyle = { animationDelay: `${idx * 60}ms`, animationFillMode: 'both' as const }
+                  return news.source_url ? (
+                    <a
+                      key={news.id}
+                      href={news.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`${sharedClass} cursor-pointer`}
+                      style={sharedStyle}
+                    >
+                      {content}
+                    </a>
+                  ) : (
+                    <div key={news.id} className={sharedClass} style={sharedStyle}>
+                      {content}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-surface-800 line-clamp-2 group-hover/item:text-primary-700 transition-colors">
-                        {news.title}
-                      </p>
-                      <p className="text-xs text-surface-400 mt-1">
-                        {news.source_name}
-                        {news.published_at &&
-                          ` · ${new Date(news.published_at).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                          })}`}
-                      </p>
-                    </div>
-                    <ArrowUpRight size={14} className="mt-1 text-surface-300 group-hover/item:text-primary-500 flex-shrink-0 transition-colors" />
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </Card>

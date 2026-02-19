@@ -76,11 +76,18 @@ async def create_indexes():
     await db.trade_data.create_index("hs_code")
     await db.trade_data.create_index([("source", 1), ("flow", 1)])
     await db.trade_data.create_index("period_date")
+    # Compound indexes for the most frequent query patterns
+    await db.trade_data.create_index(
+        [("flow", 1), ("period_date", 1)],
+        name="idx_trade_flow_period",
+    )
+    await db.trade_data.create_index("partner_code", name="idx_trade_partner_code")
 
     # News articles
     await db.news_articles.create_index("source_url", unique=True)
     await db.news_articles.create_index("category")
     await db.news_articles.create_index("published_at")
+    await db.news_articles.create_index("created_at")
 
     # Reports
     await db.reports.create_index("generated_by")
@@ -88,6 +95,35 @@ async def create_indexes():
 
     # Data source status
     await db.data_source_status.create_index("source_name", unique=True)
+
+    # Market research collections
+    await db.market_segments.create_index(
+        [("axis", 1), ("code", 1)], unique=True, name="uq_segment_axis_code"
+    )
+    await db.market_size_series.create_index(
+        [("segment_code", 1), ("geography_code", 1), ("year", 1), ("flow", 1)],
+        unique=True,
+        name="uq_market_size_composite",
+    )
+    await db.companies.create_index("name", unique=True)
+    await db.market_share_series.create_index(
+        [("company_name", 1), ("segment_code", 1), ("year", 1)],
+        unique=True,
+        name="uq_market_share_composite",
+    )
+    await db.competitive_events.create_index([("event_date", -1)])
+    await db.competitive_events.create_index("company_name")
+    await db.insights.create_index("category")
+    await db.insights.create_index([("created_at", -1)])
+    await db.framework_results.create_index([("framework_type", 1), ("created_at", -1)])
+
+    # Scheduler runs
+    await db.scheduler_runs.create_index([("started_at", -1)])
+
+    # Email recipients
+    await db.email_recipients.create_index(
+        [("user_id", 1), ("email", 1)], unique=True, name="uq_email_recipient_user"
+    )
 
     logger.info("MongoDB indexes created/verified")
 

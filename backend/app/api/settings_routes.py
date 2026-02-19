@@ -1,5 +1,8 @@
 import asyncio
 import logging
+import re
+import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -7,6 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.api.deps import get_current_user
 from app.config import settings
 from app.database import get_db, get_sync_db
+from app.schemas.email import EmailRecipientCreate, EmailRecipientResponse
 from app.schemas.settings import APIKeyStatus, DataSourceStatusResponse
 
 logger = logging.getLogger(__name__)
@@ -105,3 +109,73 @@ async def get_api_keys(user: dict = Depends(get_current_user)):
             masked_value=mask_key(settings.GEMINI_API_KEY),
         ),
     ]
+
+
+# ── Email Recipients CRUD ──────────────────────────────────────────
+
+
+@router.get("/email-recipients", response_model=list[EmailRecipientResponse])
+async def get_email_recipients(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """List saved email recipients for current user."""
+    cursor = db.email_recipients.find({"user_id": user["_id"]}).sort("created_at", -1)
+    docs = await cursor.to_list(100)
+    return [
+        EmailRecipientResponse(
+            id=str(d["_id"]),
+            email=d.get("email", ""),
+            name=d.get("name", ""),
+            created_at=d.get("created_at", datetime.now(timezone.utc)),
+        )
+        for d in docs
+    ]
+
+
+@router.post("/email-recipients", response_model=EmailRecipientResponse)
+async def add_email_recipient(
+    data: EmailRecipientCreate,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Add a new email recipient."""
+    email = data.email.strip().lower()
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(status_code=422, detail="Adresse email invalide")
+
+    # Check for duplicate
+    existing = await db.email_recipients.find_one({"user_id": user["_id"], "email": email})
+    if existing:
+        raise HTTPException(status_code=409, detail="Ce destinataire existe deja")
+
+    doc = {
+        "_id": str(uuid.uuid4()),
+        "user_id": user["_id"],
+        "email": email,
+        "name": data.name.strip(),
+        "created_at": datetime.now(timezone.utc),
+    }
+    await db.email_recipients.insert_one(doc)
+
+    return EmailRecipientResponse(
+        id=doc["_id"],
+        email=doc["email"],
+        name=doc["name"],
+        created_at=doc["created_at"],
+    )
+
+
+@router.delete("/email-recipients/{recipient_id}")
+async def delete_email_recipient(
+    recipient_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """Delete a saved email recipient."""
+    result = await db.email_recipients.delete_one(
+        {"_id": recipient_id, "user_id": user["_id"]}
+    )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Destinataire non trouve")
+    return {"status": "deleted", "id": recipient_id}

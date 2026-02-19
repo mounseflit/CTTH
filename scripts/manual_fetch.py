@@ -36,11 +36,14 @@ try:
 except ImportError:
     _HAS_OTEXA = False
 
+from app.agents.market_research_agent import MarketResearchAgent
+
 AGENTS: dict = {
     "eurostat": EurostatAgent,
     "comtrade": ComtradeAgent,
     "federal_register": FederalRegisterAgent,
     "general_watcher": GeneralWatcher,
+    "market_research": MarketResearchAgent,
 }
 if _HAS_OTEXA:
     AGENTS["otexa"] = OtexaAgent

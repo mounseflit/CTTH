@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, dashboard, health, news, reports, settings_routes, trade
+from app.api import auth, dashboard, health, market_research, news, reports, scheduler_routes, settings_routes, trade
 from app.database import close_connections, create_indexes
 
 logger = logging.getLogger(__name__)
@@ -16,8 +16,18 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Creating MongoDB indexes …")
     await create_indexes()
+
+    # Initialize and start scheduler
+    from app.scheduler.core import init_scheduler, start_scheduler
+    init_scheduler()
+    start_scheduler()
+
     yield
+
     # Shutdown
+    from app.scheduler.core import stop_scheduler
+    stop_scheduler()
+
     logger.info("Closing MongoDB connections …")
     await close_connections()
 
@@ -49,7 +59,13 @@ app.include_router(reports.router, prefix="/api/reports", tags=["Rapports"])
 app.include_router(
     settings_routes.router, prefix="/api/settings", tags=["Parametres"]
 )
+app.include_router(
+    market_research.router, prefix="/api/market-research", tags=["Etude de marche"]
+)
 app.include_router(health.router, prefix="/api/health", tags=["Sante"])
+app.include_router(
+    scheduler_routes.router, prefix="/api/scheduler", tags=["Planificateur"]
+)
 
 
 @app.get("/")

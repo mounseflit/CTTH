@@ -1,13 +1,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { tradeApi } from '@/lib/api'
 import type { TradeDataRow, TradePaginatedResponse, ChartDataPoint } from '@/types'
 import Card from '@/components/ui/Card'
-import BarChartWidget from '@/components/charts/BarChartWidget'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import Pagination from '@/components/ui/Pagination'
 import { Filter, Table2, BarChart3, ChevronDown, X } from 'lucide-react'
+
+// Lazy-load heavy Recharts component
+const BarChartWidget = dynamic(() => import('@/components/charts/BarChartWidget'), {
+  ssr: false,
+  loading: () => <div className="h-48 flex items-center justify-center"><LoadingSpinner /></div>,
+})
 
 const HS_CHAPTERS = [
   { code: '50', label: 'Soie' },
@@ -274,9 +280,11 @@ export default function TradePage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card title="Top 10 Partenaires" subtitle="Par valeur commerciale">
             <BarChartWidget data={topPartners} layout="horizontal" />
+            <p className="text-[10px] text-surface-400 mt-3 text-right italic">Sources : Eurostat &middot; UN Comtrade</p>
           </Card>
           <Card title="Répartition par Chapitre SH" subtitle="Ventilation textile">
             <BarChartWidget data={hsBreakdown} color="#353A3A" />
+            <p className="text-[10px] text-surface-400 mt-3 text-right italic">Sources : Eurostat (SITC) &middot; UN Comtrade (HS 50-63)</p>
           </Card>
         </div>
       ) : (

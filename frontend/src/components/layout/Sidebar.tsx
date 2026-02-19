@@ -11,15 +11,17 @@ import {
   Settings,
   LogOut,
   Sparkles,
+  TrendingUp,
 } from 'lucide-react'
 import { useAuthStore } from '@/lib/store'
 
 const navItems = [
   { href: '/', label: 'Tableau de Bord', icon: LayoutDashboard },
   { href: '/trade', label: 'Analyse Commerciale', icon: BarChart3 },
-  { href: '/news', label: 'Veille & Actualités', icon: Newspaper },
+  { href: '/market-research', label: 'Etude de March\u00e9', icon: TrendingUp },
+  { href: '/news', label: 'Veille & Actualit\u00e9s', icon: Newspaper },
   { href: '/reports', label: 'Centre de Rapports', icon: FileText },
-  { href: '/settings', label: 'Paramètres', icon: Settings },
+  { href: '/settings', label: 'Param\u00e8tres', icon: Settings },
 ]
 
 export default function Sidebar() {

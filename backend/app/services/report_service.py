@@ -33,14 +33,16 @@ class ReportGenerationService:
         Returns a dict with content_markdown, content_html, pdf_path.
         """
         params = report.get("parameters") or {}
+        report_type = report.get("report_type", "custom")
 
         # Step 1: Gather data from MongoDB
-        data_context = self._gather_data(params)
+        if report_type == "market_research":
+            data_context = self._gather_market_research_data(params)
+        else:
+            data_context = self._gather_data(params)
 
         # Step 2: Generate narrative with LLM
-        markdown_content = self._generate_narrative(
-            report.get("report_type", "custom"), data_context
-        )
+        markdown_content = self._generate_narrative(report_type, data_context)
 
         # Step 3: Render to HTML
         html_content = self._render_html(markdown_content, report.get("title", "Rapport"))
@@ -170,6 +172,78 @@ class ReportGenerationService:
         return context
 
     # ------------------------------------------------------------------
+    # Market research data gathering
+    # ------------------------------------------------------------------
+
+    def _gather_market_research_data(self, params: dict) -> dict:
+        """Build comprehensive market research data context."""
+        # Start with base trade data
+        context = self._gather_data(params)
+
+        # Add market segments
+        segments = list(self.db.market_segments.find({}).limit(30))
+        context["market_segments"] = [
+            {"axis": s.get("axis", ""), "code": s.get("code", ""), "label_fr": s.get("label_fr", "")}
+            for s in segments
+        ]
+
+        # Add market size series (latest years)
+        size_data = list(
+            self.db.market_size_series.find({"segment_code": "ALL"}).sort("year", -1).limit(10)
+        )
+        context["market_size_trend"] = [
+            {"year": d.get("year"), "flow": d.get("flow", ""), "value_usd": d.get("value_usd", 0)}
+            for d in size_data
+        ]
+
+        # Add companies
+        companies = list(self.db.companies.find({}).sort("name", 1).limit(20))
+        context["companies"] = [
+            {
+                "name": c.get("name", ""),
+                "country": c.get("country", ""),
+                "description_fr": c.get("description_fr", ""),
+                "swot": c.get("swot", {}),
+                "financials": c.get("financials", {}),
+            }
+            for c in companies
+        ]
+
+        # Add market share
+        share_data = list(self.db.market_share_series.find({}).sort("share_pct", -1).limit(20))
+        context["market_share"] = [
+            {"company_name": d.get("company_name", ""), "share_pct": d.get("share_pct", 0), "year": d.get("year")}
+            for d in share_data
+        ]
+
+        # Add competitive events
+        events = list(self.db.competitive_events.find({}).sort("event_date", -1).limit(15))
+        context["competitive_events"] = [
+            {
+                "event_type": e.get("event_type", ""),
+                "company_name": e.get("company_name", ""),
+                "title": e.get("title", ""),
+                "description_fr": e.get("description_fr", ""),
+                "event_date": str(e.get("event_date", ""))[:10],
+            }
+            for e in events
+        ]
+
+        # Add insights
+        insights = list(self.db.insights.find({}).sort("created_at", -1).limit(10))
+        context["insights"] = [
+            {
+                "category": i.get("category", ""),
+                "title": i.get("title", ""),
+                "narrative_fr": i.get("narrative_fr", ""),
+                "droc_type": i.get("droc_type"),
+            }
+            for i in insights
+        ]
+
+        return context
+
+    # ------------------------------------------------------------------
     # LLM narrative
     # ------------------------------------------------------------------
 
@@ -183,27 +257,56 @@ class ReportGenerationService:
             "- Utilise UNIQUEMENT les chiffres fournis dans les donnees ci-dessous.\n"
             "- Ne genere JAMAIS de statistiques ou de chiffres inventes.\n"
             "- Si une donnee manque, indique 'Donnee non disponible'.\n"
-            "- Utilise le format markdown pour la mise en forme.\n"
-            "- Structure le rapport avec des sections claires.\n"
+            "\n\nREGLES DE MISE EN FORME MARKDOWN:\n"
+            "- Utilise ## pour les titres de section et ### pour les sous-sections\n"
+            "- Utilise des tableaux markdown (avec | separateurs) pour presenter les donnees chiffrees et comparaisons\n"
+            "- Mets en **gras** les chiffres cles, pourcentages et termes importants\n"
+            "- Utilise des listes a puces (-) pour les insights et listes numerotees (1.) pour les recommandations\n"
+            "- Ajoute --- (ligne horizontale) entre les sections majeures\n"
+            "- Utilise > (blockquote) pour les points cles et resumes de section\n"
+            "- Formate les valeurs monetaires avec $ et separateurs de milliers (ex: $1.2B, $45.3M)\n"
+            "- Chaque section doit avoir un contenu substantiel (minimum 3-4 paragraphes ou sous-sections)\n"
             "- Fournis des analyses de tendances et des recommandations strategiques."
         )
 
         data_str = json.dumps(context, indent=2, default=str, ensure_ascii=False)
 
-        user_prompt = f"""
+        if report_type == "market_research":
+            user_prompt = f"""
+Donnees pour l'etude de marche complete:
+Periode: {context.get('period', 'Non specifiee')}
+
+{data_str}
+
+Redige une etude de marche complete et detaillee en francais avec les 8 modules suivants.
+Chaque section doit etre riche, avec des tableaux comparatifs, des analyses detaillees et des insights actionables.
+
+1. **Resume Executif** - Points cles en 5-7 puces couvrant toutes les dimensions. Commence par un blockquote (>) resumant la conclusion principale.
+2. **Vue d'Ensemble du Marche** - Taille du marche, croissance, TAM/SAM/SOM. Inclus un tableau recapitulatif des KPIs.
+3. **Analyse de Segmentation** - Tableau de repartition par chapitre SH avec valeurs. Categories de produits et types de fibres.
+4. **Paysage Concurrentiel (Forces de Porter)** - Analyse des 5 forces avec score (Faible/Moyen/Fort) pour chacune. Utilise un tableau.
+5. **Analyse PESTEL** - Tableau des 6 dimensions avec facteurs cles et impact pour chacune.
+6. **Profils d'Entreprises & Parts de Marche** - Tableau des entreprises cles avec pays, positionnement, part de marche estimee.
+7. **Analyse des Flux Commerciaux** - Tableau exportations/importations/balance. Top partenaires avec volumes.
+8. **Recommandations Strategiques** - Liste numerotee d'actions concretes. Opportunites, risques, et plan d'action.
+"""
+        else:
+            user_prompt = f"""
 Donnees pour le rapport de type "{report_type}":
 Periode: {context.get('period', 'Non specifiee')}
 
 {data_str}
 
-Redige un rapport complet en francais avec les sections suivantes:
-1. **Resume Executif** - Points cles en 3-5 puces
-2. **Analyse des Flux Commerciaux** - Exportations, importations, balance
-3. **Principaux Partenaires Commerciaux** - Analyse par pays
-4. **Analyse par Produit (Chapitre SH)** - Repartition sectorielle
-5. **Tendances et Evolution** - Analyse des tendances mensuelles
-6. **Contexte Reglementaire et Actualites** - Resume des actualites pertinentes
-7. **Recommandations Strategiques** - Opportunites et risques identifies
+Redige un rapport complet et bien structure en francais avec les sections suivantes.
+Utilise des tableaux pour les donnees chiffrees et des blockquotes pour les points cles.
+
+1. **Resume Executif** - Points cles en 3-5 puces. Commence par un blockquote resumant la conclusion principale.
+2. **Analyse des Flux Commerciaux** - Tableau exportations/importations/balance avec comparaison.
+3. **Principaux Partenaires Commerciaux** - Tableau par pays avec volumes et tendances.
+4. **Analyse par Produit (Chapitre SH)** - Tableau de repartition sectorielle avec valeurs.
+5. **Tendances et Evolution** - Analyse des tendances mensuelles avec interpretation.
+6. **Contexte Reglementaire et Actualites** - Resume des actualites pertinentes par categorie.
+7. **Recommandations Strategiques** - Liste numerotee d'opportunites et risques identifies.
 """
 
         response = self.openai.chat.completions.create(
@@ -212,7 +315,7 @@ Redige un rapport complet en francais avec les sections suivantes:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=4000,
+            max_tokens=6000,
             temperature=0.3,
         )
         return response.choices[0].message.content or ""
