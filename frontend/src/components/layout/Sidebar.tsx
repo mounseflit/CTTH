@@ -12,12 +12,14 @@ import {
   LogOut,
   Sparkles,
   TrendingUp,
+  Search,
 } from 'lucide-react'
 import { useAuthStore } from '@/lib/store'
 
 const navItems = [
   { href: '/', label: 'Tableau de Bord', icon: LayoutDashboard },
   { href: '/trade', label: 'Analyse Commerciale', icon: BarChart3 },
+  { href: '/product-analysis', label: 'Analyse Produit', icon: Search },
   { href: '/market-research', label: 'Etude de March\u00e9', icon: TrendingUp },
   { href: '/news', label: 'Veille & Actualit\u00e9s', icon: Newspaper },
   { href: '/reports', label: 'Centre de Rapports', icon: FileText },

@@ -232,6 +232,110 @@ export interface EmailRecipient {
   created_at: string
 }
 
+// ── Deep Product Analysis ─────────────────────────────────
+
+export interface DeepAnalysisTrendPoint {
+  year: number
+  export_usd: number
+  import_usd: number
+}
+
+export interface DeepSegment {
+  name: string
+  share_pct: number
+  size_usd: number
+  growth: string
+  description: string
+}
+
+export interface DeepLeaderCompany {
+  name: string
+  country: string
+  market_share_pct: number
+  strengths: string
+  description: string
+}
+
+export interface DeepAnalysisFrameworks {
+  pestel?: Record<string, unknown>
+  tam_sam_som?: {
+    tam?: { value_usd: number; description: string }
+    sam?: { value_usd: number; description: string }
+    som?: { value_usd: number; description: string }
+    methodology?: string
+    summary?: string
+  }
+  porter?: Record<string, unknown>
+  bcg?: {
+    position: 'star' | 'cash_cow' | 'question_mark' | 'dog'
+    x_market_share: number
+    y_market_growth: number
+    justification: string
+  }
+  market_segmentation?: {
+    segments: DeepSegment[]
+    summary?: string
+  }
+  leader_companies?: DeepLeaderCompany[]
+  trend_probability?: {
+    upward_pct: number
+    justification: string
+  }
+  recommendations?: string[]
+  strategic_projection?: string
+}
+
+export interface DeepCompanyInfo {
+  name: string
+  description: string
+  country: string
+  city: string
+  website: string
+  market_share_pct: number | null
+  revenue_usd: number | null
+}
+
+export interface DeepNewsItem {
+  title: string
+  summary: string
+  source_url: string
+  source_name: string
+  category: string
+  tags: string[]
+  published_at: string
+}
+
+export interface DeepCompetitiveEvent {
+  event_type: string
+  company: string
+  title: string
+  description: string
+  date: string
+  source_url: string
+  source_name: string
+}
+
+export interface DeepAnalysisResult {
+  hs_code: string
+  hs_description: string
+  year: number
+  export_total_usd: number
+  import_total_usd: number
+  trade_balance_usd: number
+  export_formatted: string
+  import_formatted: string
+  trade_trend: DeepAnalysisTrendPoint[]
+  trend_pct: number
+  trend_direction: string
+  top_partners: { label: string; value: number }[]
+  export_partners: { label: string; value: number }[]
+  import_partners: { label: string; value: number }[]
+  frameworks: DeepAnalysisFrameworks
+  companies: DeepCompanyInfo[]
+  recent_news: DeepNewsItem[]
+  competitive_events: DeepCompetitiveEvent[]
+}
+
 // ── Scheduler ─────────────────────────────────────────────
 
 export interface SchedulerStatus {

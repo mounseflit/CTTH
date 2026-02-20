@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import dynamic from 'next/dynamic'
 import { marketResearchApi } from '@/lib/api'
+import BarChartWidget from '@/components/charts/BarChartWidget'
+import PieChartWidget from '@/components/charts/PieChartWidget'
 import type {
   MarketOverview,
   Segment,
@@ -35,15 +36,6 @@ import {
   RotateCcw,
 } from 'lucide-react'
 
-// Lazy-load heavy Recharts components — keeps initial JS bundle lean
-const BarChartWidget = dynamic(() => import('@/components/charts/BarChartWidget'), {
-  ssr: false,
-  loading: () => <div className="h-48 flex items-center justify-center"><LoadingSpinner /></div>,
-})
-const PieChartWidget = dynamic(() => import('@/components/charts/PieChartWidget'), {
-  ssr: false,
-  loading: () => <div className="h-48 flex items-center justify-center"><LoadingSpinner /></div>,
-})
 
 const TABS = [
   { key: 'overview', label: 'Vue d\'ensemble', icon: TrendingUp },

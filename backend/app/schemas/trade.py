@@ -1,6 +1,6 @@
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class TradeDataQuery(BaseModel):
@@ -48,3 +48,29 @@ class TradePaginatedResponse(BaseModel):
     page: int
     per_page: int
     total_pages: int
+
+
+class DeepAnalysisRequest(BaseModel):
+    hs_code: str  # e.g. "61" (chapter), "610210" (full code)
+    year: int
+
+    @field_validator("hs_code")
+    @classmethod
+    def hs_code_must_be_numeric(cls, v: str) -> str:
+        v = v.strip()
+        if not v.isdigit():
+            raise ValueError("hs_code must contain only digits")
+        return v
+
+    @field_validator("year")
+    @classmethod
+    def year_in_range(cls, v: int) -> int:
+        if v < 2000 or v > 2030:
+            raise ValueError("year must be between 2000 and 2030")
+        return v
+
+
+class DeepAnalysisShareRequest(DeepAnalysisRequest):
+    """Share deep analysis by email — extends DeepAnalysisRequest with recipient info."""
+    recipient_ids: list[str] = []
+    extra_emails: list[str] = []

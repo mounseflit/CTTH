@@ -42,7 +42,8 @@ class ReportGenerationService:
             data_context = self._gather_data(params)
 
         # Step 2: Generate narrative with LLM
-        markdown_content = self._generate_narrative(report_type, data_context)
+        custom_prompt = params.get("custom_prompt", "") if report_type == "custom" else ""
+        markdown_content = self._generate_narrative(report_type, data_context, custom_prompt=custom_prompt)
 
         # Step 3: Render to HTML
         html_content = self._render_html(markdown_content, report.get("title", "Rapport"))
@@ -247,7 +248,7 @@ class ReportGenerationService:
     # LLM narrative
     # ------------------------------------------------------------------
 
-    def _generate_narrative(self, report_type: str, context: dict) -> str:
+    def _generate_narrative(self, report_type: str, context: dict, *, custom_prompt: str = "") -> str:
         """Generate French narrative using GPT-4o."""
         system_prompt = (
             "Tu es un analyste expert en commerce international textile pour le Maroc. "
@@ -271,7 +272,28 @@ class ReportGenerationService:
 
         data_str = json.dumps(context, indent=2, default=str, ensure_ascii=False)
 
-        if report_type == "market_research":
+        if report_type == "custom" and custom_prompt:
+            user_prompt = f"""
+L'utilisateur a demande un rapport personnalise sur le sujet suivant :
+"{custom_prompt}"
+
+Donnees disponibles dans la base de donnees CTTH :
+Periode: {context.get('period', 'Non specifiee')}
+
+{data_str}
+
+Redige un rapport complet, professionnel et detaille en francais sur le sujet demande.
+Appuie-toi sur les donnees fournies ci-dessus pour enrichir ton analyse avec des chiffres reels.
+Structure le rapport avec les sections suivantes (adapte les titres au sujet) :
+
+1. **Resume Executif** - Points cles en 3-5 puces. Commence par un blockquote resumant la conclusion principale.
+2. **Contexte et Enjeux** - Presentation du sujet et de son importance pour le secteur textile marocain.
+3. **Analyse des Donnees** - Tableaux et analyses chiffrees en lien avec le sujet.
+4. **Tendances et Perspectives** - Evolution recente et projections futures.
+5. **Impact sur le Secteur Textile Marocain** - Consequences et opportunites pour le CTTH et les entreprises locales.
+6. **Recommandations Strategiques** - Actions concretes numerotees, opportunites et risques.
+"""
+        elif report_type == "market_research":
             user_prompt = f"""
 Donnees pour l'etude de marche complete:
 Periode: {context.get('period', 'Non specifiee')}

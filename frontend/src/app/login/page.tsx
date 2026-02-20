@@ -79,13 +79,8 @@ export default function LoginPage() {
           </p>
           <div className="flex items-center gap-6 mt-8">
             <div className="text-center">
-              <p className="text-2xl font-extrabold text-white">5+</p>
+              <p className="text-2xl font-extrabold text-white">10+</p>
               <p className="text-[10px] uppercase tracking-wider text-white/40 mt-0.5">Sources de données</p>
-            </div>
-            <div className="w-px h-10 bg-white/10" />
-            <div className="text-center">
-              <p className="text-2xl font-extrabold text-white">AI</p>
-              <p className="text-[10px] uppercase tracking-wider text-white/40 mt-0.5">OpenAI + Gemini</p>
             </div>
             <div className="w-px h-10 bg-white/10" />
             <div className="text-center">

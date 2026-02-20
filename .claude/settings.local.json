@@ -53,7 +53,20 @@
       "Bash(cmd /c \"taskkill /PID 29792 /F /T\")",
       "Bash(cmd /c \"taskkill /PID 32420 /F /T\")",
       "Bash(start /B cmd /C:*)",
-      "Bash(timeout /t 5 /nobreak)"
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(python3:*)",
+      "Bash(tasklist:*)",
+      "Bash(dir:*)",
+      "Bash(cmd /c \"dir \"\"C:\\\\Users\\\\HP\\\\Desktop\\\\CTTH\\\\frontend\\\\.env*\"\"\")",
+      "Bash(cmd /c \"dir \"\"C:\\\\Users\\\\HP\\\\Desktop\\\\CTTH\\\\frontend\"\"\")",
+      "Bash(ls:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(powershell -NoProfile -Command:*)",
+      "Bash(timeout /t 20 /nobreak)",
+      "mcp__plugin_playwright_playwright__browser_wait_for",
+      "Bash(ss:*)",
+      "Bash(start //B python -m uvicorn app.main:app --host 0.0.0.0 --port 5000)",
+      "Bash(start //B npx next dev -p 4000)"
     ]
   }
 }

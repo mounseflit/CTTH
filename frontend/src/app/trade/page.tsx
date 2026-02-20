@@ -1,19 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import dynamic from 'next/dynamic'
 import { tradeApi } from '@/lib/api'
 import type { TradeDataRow, TradePaginatedResponse, ChartDataPoint } from '@/types'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import Pagination from '@/components/ui/Pagination'
+import BarChartWidget from '@/components/charts/BarChartWidget'
 import { Filter, Table2, BarChart3, ChevronDown, X } from 'lucide-react'
-
-// Lazy-load heavy Recharts component
-const BarChartWidget = dynamic(() => import('@/components/charts/BarChartWidget'), {
-  ssr: false,
-  loading: () => <div className="h-48 flex items-center justify-center"><LoadingSpinner /></div>,
-})
 
 const HS_CHAPTERS = [
   { code: '50', label: 'Soie' },

@@ -1,42 +1,16 @@
 'use client'
 
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts'
 import type { TrendDataPoint } from '@/types'
 
 interface AreaTrendChartProps {
   data: TrendDataPoint[]
 }
 
-const formatValue = (value: number) => {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`
-  return value.toFixed(0)
-}
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="bg-surface-900/95 backdrop-blur-md px-4 py-3 rounded-xl shadow-lg border border-white/10">
-      <p className="text-[11px] font-semibold text-surface-300 mb-1.5">{label}</p>
-      {payload.map((entry: any, i: number) => (
-        <div key={i} className="flex items-center gap-2 text-xs">
-          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-          <span className="text-white/70">{entry.name}:</span>
-          <span className="text-white font-bold">${formatValue(entry.value)}</span>
-        </div>
-      ))}
-    </div>
-  )
+function fmt(value: number): string {
+  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`
+  return `$${value.toFixed(0)}`
 }
 
 export default function AreaTrendChart({ data }: AreaTrendChartProps) {
@@ -48,62 +22,94 @@ export default function AreaTrendChart({ data }: AreaTrendChartProps) {
     )
   }
 
+  const W = 600
+  const H = 220
+  const padL = 60
+  const padR = 16
+  const padT = 16
+  const padB = 32
+
+  const chartW = W - padL - padR
+  const chartH = H - padT - padB
+
+  const allValues = data.flatMap((d) => [d.exports ?? 0, d.imports ?? 0])
+  const maxVal = Math.max(...allValues, 1)
+
+  const xStep = chartW / Math.max(data.length - 1, 1)
+
+  const toX = (i: number) => padL + i * xStep
+  const toY = (v: number) => padT + chartH - (v / maxVal) * chartH
+
+  const polyline = (key: 'exports' | 'imports') =>
+    data.map((d, i) => `${toX(i)},${toY(d[key] ?? 0)}`).join(' ')
+
+  const area = (key: 'exports' | 'imports') => {
+    const pts = data.map((d, i) => `${toX(i)},${toY(d[key] ?? 0)}`).join(' ')
+    const last = data.length - 1
+    return `${padL},${padT + chartH} ${pts} ${toX(last)},${padT + chartH}`
+  }
+
+  // Y axis ticks
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((t) => ({
+    v: maxVal * t,
+    y: padT + chartH - t * chartH,
+  }))
+
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+    <div className="w-full">
+      {/* Legend */}
+      <div className="flex items-center gap-4 mb-3 px-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#58B9AF' }} />
+          <span className="text-xs text-surface-500 font-medium">Exportations</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#353A3A' }} />
+          <span className="text-xs text-surface-500 font-medium">Importations</span>
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 260 }}>
         <defs>
-          <linearGradient id="gradExports" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#58B9AF" stopOpacity={0.25} />
-            <stop offset="100%" stopColor="#58B9AF" stopOpacity={0.01} />
+          <linearGradient id="gExp" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#58B9AF" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#58B9AF" stopOpacity="0.02" />
           </linearGradient>
-          <linearGradient id="gradImports" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#353A3A" stopOpacity={0.2} />
-            <stop offset="100%" stopColor="#353A3A" stopOpacity={0.01} />
+          <linearGradient id="gImp" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#353A3A" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#353A3A" stopOpacity="0.02" />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-        <XAxis
-          dataKey="period"
-          tick={{ fontSize: 11, fill: '#94a3b8' }}
-          tickLine={false}
-          axisLine={{ stroke: '#e2e8f0' }}
-        />
-        <YAxis
-          tick={{ fontSize: 11, fill: '#94a3b8' }}
-          tickFormatter={formatValue}
-          tickLine={false}
-          axisLine={false}
-          width={55}
-        />
-        <Tooltip content={<CustomTooltip />} />
-        <Legend
-          iconType="circle"
-          iconSize={8}
-          wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }}
-        />
-        <Area
-          type="monotone"
-          dataKey="exports"
-          name="Exportations"
-          stroke="#58B9AF"
-          fillOpacity={1}
-          fill="url(#gradExports)"
-          strokeWidth={2.5}
-          dot={false}
-          activeDot={{ r: 5, fill: '#58B9AF', stroke: '#fff', strokeWidth: 2 }}
-        />
-        <Area
-          type="monotone"
-          dataKey="imports"
-          name="Importations"
-          stroke="#353A3A"
-          fillOpacity={1}
-          fill="url(#gradImports)"
-          strokeWidth={2.5}
-          dot={false}
-          activeDot={{ r: 5, fill: '#353A3A', stroke: '#fff', strokeWidth: 2 }}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
+
+        {/* Grid lines */}
+        {yTicks.map((t, i) => (
+          <g key={i}>
+            <line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4 3" />
+            <text x={padL - 6} y={t.y + 4} textAnchor="end" fontSize="10" fill="#94a3b8">
+              {fmt(t.v)}
+            </text>
+          </g>
+        ))}
+
+        {/* Area fills */}
+        <polygon points={area('exports')} fill="url(#gExp)" />
+        <polygon points={area('imports')} fill="url(#gImp)" />
+
+        {/* Lines */}
+        <polyline points={polyline('exports')} fill="none" stroke="#58B9AF" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+        <polyline points={polyline('imports')} fill="none" stroke="#353A3A" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+
+        {/* Dots + X labels */}
+        {data.map((d, i) => (
+          <g key={i}>
+            <circle cx={toX(i)} cy={toY(d.exports ?? 0)} r="4" fill="#58B9AF" stroke="#fff" strokeWidth="2" />
+            <circle cx={toX(i)} cy={toY(d.imports ?? 0)} r="4" fill="#353A3A" stroke="#fff" strokeWidth="2" />
+            <text x={toX(i)} y={H - 6} textAnchor="middle" fontSize="11" fill="#94a3b8">
+              {d.period}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
   )
 }

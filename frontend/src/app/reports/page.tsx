@@ -1,13 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState, type ComponentPropsWithoutRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { reportsApi, settingsApi } from '@/lib/api'
 import type { Report, EmailRecipient } from '@/types'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import {
   FileText,
   Download,
@@ -24,6 +22,8 @@ import {
   TrendingUp,
   Plus,
   Users,
+  MessageSquare,
+  Loader2,
 } from 'lucide-react'
 
 const REPORT_TYPES = [
@@ -34,45 +34,137 @@ const REPORT_TYPES = [
   { key: 'custom', label: 'Rapport Personnalise', icon: Sparkles, desc: 'Rapport sur mesure par IA' },
 ]
 
-// Custom markdown components for beautiful rendering
-const markdownComponents = {
-  table: ({ children, ...props }: ComponentPropsWithoutRef<'table'>) => (
-    <div className="overflow-x-auto my-4 rounded-xl border border-surface-100">
-      <table className="w-full text-sm" {...props}>{children}</table>
-    </div>
-  ),
-  thead: ({ children, ...props }: ComponentPropsWithoutRef<'thead'>) => (
-    <thead className="bg-primary-500 text-white" {...props}>{children}</thead>
-  ),
-  th: ({ children, ...props }: ComponentPropsWithoutRef<'th'>) => (
-    <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider" {...props}>{children}</th>
-  ),
-  td: ({ children, ...props }: ComponentPropsWithoutRef<'td'>) => (
-    <td className="px-4 py-2.5 border-b border-surface-100 text-surface-600" {...props}>{children}</td>
-  ),
-  tr: ({ children, ...props }: ComponentPropsWithoutRef<'tr'>) => (
-    <tr className="even:bg-surface-50/50 hover:bg-primary-50/30 transition-colors" {...props}>{children}</tr>
-  ),
-  blockquote: ({ children }: ComponentPropsWithoutRef<'blockquote'>) => (
-    <div className="border-l-4 border-primary-400 bg-primary-50/40 rounded-r-xl px-5 py-3 my-4">
-      <div className="text-surface-700 font-medium text-sm leading-relaxed">{children}</div>
-    </div>
-  ),
-  h2: ({ children, ...props }: ComponentPropsWithoutRef<'h2'>) => (
-    <h2 className="text-lg font-extrabold text-surface-800 border-b-2 border-primary-100 pb-2 mt-8 mb-3" {...props}>{children}</h2>
-  ),
-  h3: ({ children, ...props }: ComponentPropsWithoutRef<'h3'>) => (
-    <h3 className="text-base font-bold text-surface-700 mt-5 mb-2" {...props}>{children}</h3>
-  ),
-  hr: (props: ComponentPropsWithoutRef<'hr'>) => (
-    <hr className="my-6 border-none h-0.5 bg-gradient-to-r from-primary-300 via-primary-100 to-transparent" {...props} />
-  ),
-  strong: ({ children, ...props }: ComponentPropsWithoutRef<'strong'>) => (
-    <strong className="font-bold text-surface-800" {...props}>{children}</strong>
-  ),
-  li: ({ children, ...props }: ComponentPropsWithoutRef<'li'>) => (
-    <li className="text-surface-600 leading-relaxed mb-1" {...props}>{children}</li>
-  ),
+// ── Lightweight Markdown renderer (no ESM dependencies) ─────────────
+function SimpleMarkdown({ content }: { content: string }) {
+  const lines = content.split('\n')
+  const elements: React.ReactNode[] = []
+  let i = 0
+  let key = 0
+
+  const inline = (text: string): React.ReactNode => {
+    // Bold
+    const parts: React.ReactNode[] = []
+    const regex = /\*\*(.+?)\*\*/g
+    let last = 0
+    let match: RegExpExecArray | null
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > last) parts.push(text.slice(last, match.index))
+      parts.push(<strong key={`b${match.index}`} className="font-bold text-surface-800">{match[1]}</strong>)
+      last = regex.lastIndex
+    }
+    if (last < text.length) parts.push(text.slice(last))
+    return parts.length === 1 ? parts[0] : <>{parts}</>
+  }
+
+  while (i < lines.length) {
+    const line = lines[i]
+
+    // Headings
+    if (line.startsWith('## ')) {
+      elements.push(<h2 key={key++} className="text-lg font-extrabold text-surface-800 border-b-2 border-primary-100 pb-2 mt-8 mb-3">{inline(line.slice(3))}</h2>)
+      i++; continue
+    }
+    if (line.startsWith('### ')) {
+      elements.push(<h3 key={key++} className="text-base font-bold text-surface-700 mt-5 mb-2">{inline(line.slice(4))}</h3>)
+      i++; continue
+    }
+    if (line.startsWith('# ')) {
+      elements.push(<h2 key={key++} className="text-xl font-extrabold text-surface-800 border-b-2 border-primary-100 pb-2 mt-6 mb-3">{inline(line.slice(2))}</h2>)
+      i++; continue
+    }
+
+    // Horizontal rule
+    if (/^---+$/.test(line.trim())) {
+      elements.push(<hr key={key++} className="my-6 border-none h-0.5 bg-gradient-to-r from-primary-300 via-primary-100 to-transparent" />)
+      i++; continue
+    }
+
+    // Blockquote
+    if (line.startsWith('> ')) {
+      const quoteLines: string[] = []
+      while (i < lines.length && lines[i].startsWith('> ')) {
+        quoteLines.push(lines[i].slice(2))
+        i++
+      }
+      elements.push(
+        <div key={key++} className="border-l-4 border-primary-400 bg-primary-50/40 rounded-r-xl px-5 py-3 my-4">
+          <div className="text-surface-700 font-medium text-sm leading-relaxed">{quoteLines.map((l, j) => <span key={j}>{inline(l)}<br /></span>)}</div>
+        </div>
+      )
+      continue
+    }
+
+    // Unordered list
+    if (/^[-*] /.test(line)) {
+      const items: string[] = []
+      while (i < lines.length && /^[-*] /.test(lines[i])) {
+        items.push(lines[i].replace(/^[-*] /, ''))
+        i++
+      }
+      elements.push(
+        <ul key={key++} className="list-disc list-inside space-y-1 my-2 ml-2">
+          {items.map((item, j) => <li key={j} className="text-surface-600 leading-relaxed">{inline(item)}</li>)}
+        </ul>
+      )
+      continue
+    }
+
+    // Ordered list
+    if (/^\d+\. /.test(line)) {
+      const items: string[] = []
+      while (i < lines.length && /^\d+\. /.test(lines[i])) {
+        items.push(lines[i].replace(/^\d+\. /, ''))
+        i++
+      }
+      elements.push(
+        <ol key={key++} className="list-decimal list-inside space-y-1 my-2 ml-2">
+          {items.map((item, j) => <li key={j} className="text-surface-600 leading-relaxed">{inline(item)}</li>)}
+        </ol>
+      )
+      continue
+    }
+
+    // Table
+    if (line.includes('|') && i + 1 < lines.length && lines[i + 1]?.includes('---')) {
+      const headerCells = line.split('|').map(c => c.trim()).filter(Boolean)
+      i += 2 // skip header + separator
+      const rows: string[][] = []
+      while (i < lines.length && lines[i].includes('|')) {
+        rows.push(lines[i].split('|').map(c => c.trim()).filter(Boolean))
+        i++
+      }
+      elements.push(
+        <div key={key++} className="overflow-x-auto my-4 rounded-xl border border-surface-100">
+          <table className="w-full text-sm">
+            <thead className="bg-primary-500 text-white">
+              <tr>
+                {headerCells.map((h, j) => <th key={j} className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider">{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, ri) => (
+                <tr key={ri} className="even:bg-surface-50/50 hover:bg-primary-50/30 transition-colors">
+                  {row.map((cell, ci) => <td key={ci} className="px-4 py-2.5 border-b border-surface-100 text-surface-600">{inline(cell)}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+      continue
+    }
+
+    // Empty line
+    if (!line.trim()) {
+      i++; continue
+    }
+
+    // Normal paragraph
+    elements.push(<p key={key++} className="text-sm text-surface-600 leading-relaxed my-2">{inline(line)}</p>)
+    i++
+  }
+
+  return <div className="space-y-1">{elements}</div>
 }
 
 export default function ReportsPage() {
@@ -93,6 +185,10 @@ export default function ReportsPage() {
   const [showAddNew, setShowAddNew] = useState(false)
   const [emailSending, setEmailSending] = useState(false)
   const [emailResult, setEmailResult] = useState<{ ok: boolean; msg: string } | null>(null)
+
+  // Custom prompt modal state
+  const [showPromptModal, setShowPromptModal] = useState(false)
+  const [customPrompt, setCustomPrompt] = useState('')
 
   // Form state
   const [title, setTitle] = useState('')
@@ -123,12 +219,23 @@ export default function ReportsPage() {
     e.preventDefault()
     if (!title.trim()) return
 
+    // If custom report type and no prompt yet, show the prompt modal
+    if (reportType === 'custom' && !customPrompt.trim()) {
+      setShowPromptModal(true)
+      return
+    }
+
     setCreating(true)
     try {
+      const params: Record<string, unknown> = { date_from: dateFrom, date_to: dateTo }
+      if (reportType === 'custom' && customPrompt.trim()) {
+        params.custom_prompt = customPrompt.trim()
+      }
+
       const res = await reportsApi.create({
         title,
         report_type: reportType,
-        parameters: { date_from: dateFrom, date_to: dateTo },
+        parameters: params,
       })
 
       const reportId = res.data.id
@@ -146,6 +253,7 @@ export default function ReportsPage() {
       ])
 
       setTitle('')
+      setCustomPrompt('')
 
       const pollInterval = setInterval(async () => {
         try {
@@ -174,6 +282,14 @@ export default function ReportsPage() {
     } finally {
       setCreating(false)
     }
+  }
+
+  const handlePromptConfirm = () => {
+    if (!customPrompt.trim()) return
+    setShowPromptModal(false)
+    // Trigger form submit programmatically — customPrompt is now set
+    const form = document.getElementById('report-form') as HTMLFormElement
+    if (form) form.requestSubmit()
   }
 
   const handleView = async (report: Report) => {
@@ -295,13 +411,13 @@ export default function ReportsPage() {
           </div>
         </div>
         <div className="p-6">
-          <form onSubmit={handleCreate} className="space-y-5">
+          <form id="report-form" onSubmit={handleCreate} className="space-y-5">
             {/* Report type selector */}
             <div>
               <label className="block text-[10px] font-semibold uppercase tracking-wider text-surface-400 mb-3">
                 Type de rapport
               </label>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                 {REPORT_TYPES.map((t) => {
                   const Icon = t.icon
                   return (
@@ -327,6 +443,23 @@ export default function ReportsPage() {
                 })}
               </div>
             </div>
+
+            {/* Custom prompt indicator */}
+            {reportType === 'custom' && customPrompt.trim() && (
+              <div className="flex items-center gap-3 bg-primary-50/50 rounded-xl p-3 border border-primary-100">
+                <MessageSquare size={14} className="text-primary-500 flex-shrink-0" />
+                <p className="text-xs text-primary-700 flex-1 truncate">
+                  <span className="font-semibold">Sujet :</span> {customPrompt}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowPromptModal(true)}
+                  className="text-[10px] font-semibold text-primary-600 hover:text-primary-800 underline flex-shrink-0"
+                >
+                  Modifier
+                </button>
+              </div>
+            )}
 
             {/* Title + Dates */}
             <div className="flex flex-wrap items-end gap-4">
@@ -511,11 +644,9 @@ export default function ReportsPage() {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto px-8 py-6">
-              <div className="prose prose-sm max-w-none">
+              <div className="max-w-none">
                 {viewingReport.content_markdown ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                    {viewingReport.content_markdown}
-                  </ReactMarkdown>
+                  <SimpleMarkdown content={viewingReport.content_markdown} />
                 ) : (
                   <div className="flex flex-col items-center py-12">
                     <Clock size={24} className="text-surface-300 mb-3" />
@@ -533,6 +664,75 @@ export default function ReportsPage() {
               <p className="text-[10px] text-surface-400">
                 Rapport ID: {viewingReport.id?.slice(0, 8)}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Prompt Modal */}
+      {showPromptModal && (
+        <div className="fixed inset-0 bg-surface-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-surface-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
+                  <MessageSquare size={18} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-surface-800">Rapport Personnalise par IA</h3>
+                  <p className="text-xs text-surface-400 mt-0.5">Decrivez le sujet de votre rapport</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-surface-400 mb-2">
+                  Sujet du rapport
+                </label>
+                <textarea
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  rows={4}
+                  className="input-field w-full resize-none"
+                  placeholder="Ex: Analyse de l'impact des accords de libre-echange sur l'exportation textile marocaine vers l'UE..."
+                  autoFocus
+                />
+              </div>
+
+              <div className="bg-primary-50/50 rounded-xl p-4 border border-primary-100">
+                <div className="flex items-start gap-2">
+                  <Sparkles size={14} className="text-primary-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-primary-700">Comment ca marche ?</p>
+                    <p className="text-[11px] text-primary-600 mt-1 leading-relaxed">
+                      L&apos;IA generera un rapport professionnel complet sur le sujet que vous decrivez,
+                      enrichi avec les donnees reelles de la base CTTH (flux commerciaux, partenaires,
+                      actualites du secteur textile).
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-surface-50 border-t border-surface-100 flex items-center justify-end gap-3">
+              <button
+                onClick={() => { setShowPromptModal(false); setCustomPrompt('') }}
+                className="px-4 py-2.5 text-sm font-medium text-surface-600 hover:text-surface-800 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handlePromptConfirm}
+                disabled={!customPrompt.trim()}
+                className="flex items-center gap-2 px-5 py-2.5 gradient-primary text-white rounded-xl text-sm font-semibold shadow-glow-primary hover:shadow-lg transition-all duration-200 disabled:opacity-50"
+              >
+                <Sparkles size={14} />
+                Generer le rapport
+              </button>
             </div>
           </div>
         </div>

@@ -327,7 +327,8 @@ async def send_report_email(
     created_at = str(report.get("created_at", ""))
 
     html_email = _build_email_html(title, content, report_type, created_at)
-    subject = f"CTTH — {title}"
+    now_str = datetime.now(timezone.utc).strftime("%d/%m/%Y")
+    subject = f"Rapport de veille stratégique CTTH - {now_str}"
 
     # Send to each recipient (primary URL, fallback on error/non-200)
     results = []

@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import dynamic from 'next/dynamic'
 import { dashboardApi } from '@/lib/api'
 import type { DashboardData } from '@/types'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import AreaTrendChart from '@/components/charts/AreaTrendChart'
+import BarChartWidget from '@/components/charts/BarChartWidget'
 import {
   TrendingUp,
   TrendingDown,
@@ -17,16 +18,6 @@ import {
   Activity,
   RefreshCw,
 } from 'lucide-react'
-
-// Lazy-load heavy Recharts components — keeps initial JS bundle lean
-const AreaTrendChart = dynamic(() => import('@/components/charts/AreaTrendChart'), {
-  ssr: false,
-  loading: () => <div className="h-64 flex items-center justify-center"><LoadingSpinner /></div>,
-})
-const BarChartWidget = dynamic(() => import('@/components/charts/BarChartWidget'), {
-  ssr: false,
-  loading: () => <div className="h-48 flex items-center justify-center"><LoadingSpinner /></div>,
-})
 
 const iconConfig: Record<string, { icon: React.ElementType; gradient: string; bg: string }> = {
   'trending-up': {
